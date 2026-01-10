@@ -44,9 +44,12 @@ function sanitize(html) {
     html
       // Remove MS Word junk
       .replace(/class="[^"]*"/gi, "")
-      .replace(/style="[^"]*"/gi, "")
       .replace(/<o:p>|<\/o:p>/gi, "")
+
       .replace(/<span[^>]*>|<\/span>/gi, "")
+      .replace(/style="[^"]*"/gi, (match) =>
+        match.includes("color") ? match : ""
+      )
 
       // Normalize strong/em
       .replace(/<strong>/gi, "<b>")
@@ -83,9 +86,51 @@ function update() {
   const clean = sanitize(editor.innerHTML);
   preview.innerHTML = clean;
   output.value = clean;
+  updateCounters(clean);
 }
 
 editor.addEventListener("input", update);
 editor.addEventListener("paste", () => {
   setTimeout(update, 50); // wait for browser paste
 });
+
+// Count charecters
+const shortCount = document.getElementById("shortCount");
+const longCount = document.getElementById("longCount");
+
+function updateCounters(text) {
+  const length = text.replace(/<[^>]+>/g, "").length;
+
+  shortCount.textContent = `Short: ${length} / 80`;
+  longCount.textContent = `Long: ${length} / 4000`;
+
+  shortCount.classList.toggle("over", length > 80);
+  longCount.classList.toggle("over", length > 4000);
+}
+
+// Color palette
+const palette = document.getElementById("palette");
+
+function togglePalette() {
+  palette.classList.toggle("hidden");
+}
+
+palette.addEventListener("click", (e) => {
+  if (!e.target.dataset.color) return;
+  applyColor(e.target.dataset.color);
+});
+
+function applyColor(color) {
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+
+  const range = sel.getRangeAt(0);
+  const content = range.extractContents();
+
+  const font = document.createElement("font");
+  font.setAttribute("color", color);
+  font.appendChild(content);
+
+  range.insertNode(font);
+  update();
+}

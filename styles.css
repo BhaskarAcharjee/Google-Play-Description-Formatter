@@ -254,7 +254,13 @@ body {
 
 .phone-preview font {
   font-weight: inherit;
+  color: inherit;
 }
+
+.phone-preview font[color] {
+  color: attr(color color);
+}
+
 
 /* Scrollbar polish */
 .screen::-webkit-scrollbar {
@@ -264,4 +270,50 @@ body {
 .screen::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 4px;
+}
+
+/* =========================*/
+.char-counter {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #9ca3af;
+  margin-bottom: 6px;
+  margin-top: 4px;
+}
+
+.char-counter .over {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.color-picker {
+  position: relative;
+}
+
+.palette {
+  position: absolute;
+  top: 36px;
+  left: 0;
+  background: #111;
+  border: 1px solid #1f2123;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  gap: 6px;
+  z-index: 50;
+}
+
+.palette span {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid #333;
+  background: var(--c);
+}
+
+
+.hidden {
+  display: none;
 }
