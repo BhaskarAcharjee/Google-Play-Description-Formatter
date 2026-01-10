@@ -13,23 +13,26 @@
     <div class="container">
       <!-- Markdown Input -->
       <div class="panel">
-        <h2>Markdown Input</h2>
-        <div class="panel">
-          <h2>Rich Editor (Paste from Word)</h2>
+        <h2>Rich Editor (Paste from Word)</h2>
 
-          <div class="toolbar">
-            <button onclick="format('bold')"><b>B</b></button>
-            <button onclick="format('italic')"><i>I</i></button>
-            <button onclick="format('underline')"><u>U</u></button>
-          </div>
-
-          <div
-            id="editor"
-            class="editor"
-            contenteditable="true"
-            placeholder="Paste from Word or type here..."
-          ></div>
+        <div class="toolbar">
+          <button onclick="format('bold')"><b>B</b></button>
+          <button onclick="format('italic')"><i>I</i></button>
+          <button onclick="format('underline')"><u>U</u></button>
+          <button onclick="wrapTag('blockquote')">❝</button>
+          <button onclick="wrapTag('small')">Small</button>
+          <button onclick="wrapTag('big')">Big</button>
+          <button onclick="format('superscript')">Sup</button>
+          <button onclick="format('subscript')">Sub</button>
+          <button onclick="applyColor()">🎨</button>
         </div>
+
+        <div
+          id="editor"
+          class="editor"
+          contenteditable="true"
+          placeholder="Paste from Word or type here..."
+        ></div>
       </div>
 
       <!-- Preview -->

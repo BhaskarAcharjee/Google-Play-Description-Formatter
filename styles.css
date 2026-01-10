@@ -238,10 +238,22 @@ body {
 }
 
 .phone-preview blockquote {
-  border-left: 3px solid #3b82f6;
+  border-left: 3px solid #d1d5db;
   padding-left: 10px;
   margin: 8px 0;
-  color: #333;
+  color: #444;
+}
+
+.phone-preview small {
+  font-size: 12px;
+}
+
+.phone-preview big {
+  font-size: 16px;
+}
+
+.phone-preview font {
+  font-weight: inherit;
 }
 
 /* Scrollbar polish */
