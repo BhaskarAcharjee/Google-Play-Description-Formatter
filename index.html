@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Play Store Description Formatter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+
+  <body>
+    <h1>Google Play Description Formatter</h1>
+
+    <div class="container">
+      <!-- Markdown Input -->
+      <div class="panel">
+        <h2>Markdown Input</h2>
+        <div class="panel">
+          <h2>Rich Editor (Paste from Word)</h2>
+
+          <div class="toolbar">
+            <button onclick="format('bold')"><b>B</b></button>
+            <button onclick="format('italic')"><i>I</i></button>
+            <button onclick="format('underline')"><u>U</u></button>
+          </div>
+
+          <div
+            id="editor"
+            class="editor"
+            contenteditable="true"
+            placeholder="Paste from Word or type here..."
+          ></div>
+        </div>
+      </div>
+
+      <!-- Preview -->
+      <div class="panel">
+        <h2>Live Preview (Play Store Style)</h2>
+        <div id="preview" class="preview"></div>
+      </div>
+    </div>
+
+    <!-- Output -->
+    <div class="output panel">
+      <h2>Final Play Store Output (Copy This)</h2>
+      <textarea id="output" readonly></textarea>
+
+      <div class="buttons">
+        <button onclick="copyOutput()">Copy</button>
+        <button class="secondary" onclick="resetAll()">Reset</button>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
