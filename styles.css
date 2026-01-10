@@ -252,16 +252,6 @@ body {
   font-size: 16px;
 }
 
-.phone-preview font {
-  font-weight: inherit;
-  color: inherit;
-}
-
-.phone-preview font[color] {
-  color: attr(color color);
-}
-
-
 /* Scrollbar polish */
 .screen::-webkit-scrollbar {
   width: 6px;
@@ -312,7 +302,6 @@ body {
   border: 1px solid #333;
   background: var(--c);
 }
-
 
 .hidden {
   display: none;

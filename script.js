@@ -21,22 +21,53 @@ function wrapTag(tag) {
   update();
 }
 
-function applyColor() {
-  const color = prompt("Enter HEX color (e.g. #a32345):");
-  if (!color || !/^#([0-9A-F]{3}){1,2}$/i.test(color)) return;
+let savedRange = null;
 
-  const selection = window.getSelection();
-  if (!selection.rangeCount) return;
+function saveSelection() {
+  const sel = window.getSelection();
+  if (sel.rangeCount > 0) {
+    savedRange = sel.getRangeAt(0);
+  }
+}
 
-  const range = selection.getRangeAt(0);
+editor.addEventListener("mouseup", saveSelection);
+editor.addEventListener("keyup", saveSelection);
+editor.addEventListener("blur", saveSelection);
+
+function applyColor(color) {
+  if (!savedRange) return;
+
+  editor.focus();
+
+  const range = savedRange;
   const content = range.extractContents();
+
+  if (!content.textContent.trim()) return;
 
   const font = document.createElement("font");
   font.setAttribute("color", color);
   font.appendChild(content);
 
   range.insertNode(font);
+
+  // Restore cursor
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  const newRange = document.createRange();
+  newRange.setStartAfter(font);
+  newRange.collapse(true);
+  sel.addRange(newRange);
+
+  savedRange = newRange;
   update();
+}
+
+function normalizeEditorHTML(html) {
+  return html
+    .replace(/<span style="font-weight:\s*bold[^"]*">/gi, "<b>")
+    .replace(/<\/span>/gi, "</b>")
+    .replace(/<span style="font-style:\s*italic[^"]*">/gi, "<i>")
+    .replace(/<span style="text-decoration:\s*underline[^"]*">/gi, "<u>");
 }
 
 function sanitize(html) {
@@ -46,7 +77,12 @@ function sanitize(html) {
       .replace(/class="[^"]*"/gi, "")
       .replace(/<o:p>|<\/o:p>/gi, "")
 
-      .replace(/<span[^>]*>|<\/span>/gi, "")
+      .replace(/<span[^>]*>/gi, (m) => {
+        const color = m.match(/color:\s*(#[0-9a-fA-F]{3,6})/);
+        return color ? `<font color="${color[1]}">` : "";
+      })
+      .replace(/<\/span>/gi, "</font>")
+
       .replace(/style="[^"]*"/gi, (match) =>
         match.includes("color") ? match : ""
       )
@@ -83,7 +119,8 @@ function sanitize(html) {
 }
 
 function update() {
-  const clean = sanitize(editor.innerHTML);
+  const normalized = normalizeEditorHTML(editor.innerHTML);
+  const clean = sanitize(normalized);
   preview.innerHTML = clean;
   output.value = clean;
   updateCounters(clean);
@@ -119,18 +156,3 @@ palette.addEventListener("click", (e) => {
   if (!e.target.dataset.color) return;
   applyColor(e.target.dataset.color);
 });
-
-function applyColor(color) {
-  const sel = window.getSelection();
-  if (!sel.rangeCount) return;
-
-  const range = sel.getRangeAt(0);
-  const content = range.extractContents();
-
-  const font = document.createElement("font");
-  font.setAttribute("color", color);
-  font.appendChild(content);
-
-  range.insertNode(font);
-  update();
-}
