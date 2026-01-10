@@ -1,3 +1,7 @@
+:root {
+  --preview-height: 680px;
+}
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -31,20 +35,22 @@ textarea {
   color: #fff;
   border: 1px solid #1f2123;
   border-radius: 12px;
-  padding: 14px;
+  /* padding: 14px; */
   font-size: 14px;
   resize: vertical;
   outline: none;
 }
 
 .editor {
-  min-height: 320px;
+  height: var(--preview-height);
+  max-height: var(--preview-height);
   background: #111;
   border: 1px solid #1f2123;
   border-radius: 12px;
   padding: 14px;
   outline: none;
   line-height: 1.6;
+  overflow-y: auto;
 }
 
 .toolbar {
@@ -67,6 +73,9 @@ textarea {
   border: 1px solid #1f2123;
   border-radius: 12px;
   padding: 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .panel h2 {
@@ -125,4 +134,122 @@ button.secondary {
   .container {
     grid-template-columns: 1fr;
   }
+}
+/* =========================
+   Modern UI Enhancements
+========================= */
+
+body {
+  background: radial-gradient(circle at top, #111 0%, #050505 70%);
+}
+
+/* Panels */
+.panel {
+  background: rgba(17, 17, 17, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Toolbar polish */
+.toolbar button:hover {
+  background: linear-gradient(90deg, #3b82f6, #6366f1);
+}
+
+/* =========================
+   Mobile Phone Mockup
+========================= */
+
+.phone-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.mobile-phone {
+  position: relative;
+  width: 360px;
+  height: var(--preview-height);
+  background: linear-gradient(180deg, #1c1c1c, #0b0b0b);
+  border-radius: 36px;
+  padding: 14px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.05);
+}
+
+/* Top notch */
+.brove {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 140px;
+  height: 24px;
+  background: #0b0b0b;
+  border-radius: 0 0 18px 18px;
+  z-index: 10;
+}
+
+.speaker {
+  display: block;
+  width: 60px;
+  height: 6px;
+  background: #2a2a2a;
+  margin: 8px auto 0;
+  border-radius: 20px;
+}
+
+/* Phone screen */
+.screen {
+  /* width: 100%; */
+  height: 100%;
+  background: #ffffff;
+  border-radius: 28px;
+  overflow-y: auto;
+  padding: 0px 14px;
+}
+
+/* Play Store preview typography */
+.phone-preview {
+  font-family: Roboto, Arial, sans-serif;
+  color: #111;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.phone-preview b {
+  font-weight: 700;
+}
+
+.phone-preview i {
+  font-style: italic;
+}
+
+.phone-preview u {
+  text-decoration: underline;
+}
+
+.phone-preview h1,
+.phone-preview h2,
+.phone-preview h3 {
+  font-weight: 700;
+  margin: 12px 0 6px;
+  color: #000;
+}
+
+.phone-preview blockquote {
+  border-left: 3px solid #3b82f6;
+  padding-left: 10px;
+  margin: 8px 0;
+  color: #333;
+}
+
+/* Scrollbar polish */
+.screen::-webkit-scrollbar {
+  width: 6px;
+}
+
+.screen::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
 }
