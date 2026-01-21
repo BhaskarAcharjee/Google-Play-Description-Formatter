@@ -2,30 +2,18 @@ const editor = document.getElementById("editor");
 const preview = document.getElementById("preview");
 const output = document.getElementById("output");
 
-function format(cmd) {
-  document.execCommand(cmd, false, null);
-  update();
-}
-
-function wrapTag(tag) {
-  const selection = window.getSelection();
-  if (!selection.rangeCount) return;
-
-  const range = selection.getRangeAt(0);
-  const content = range.extractContents();
-
-  const el = document.createElement(tag);
-  el.appendChild(content);
-
-  range.insertNode(el);
-  update();
-}
+const shortCount = document.getElementById("shortCount");
+const longCount = document.getElementById("longCount");
+const palette = document.getElementById("palette");
 
 let savedRange = null;
 
+/* ===============================
+   SELECTION HANDLING
+================================ */
 function saveSelection() {
   const sel = window.getSelection();
-  if (sel.rangeCount > 0) {
+  if (sel.rangeCount) {
     savedRange = sel.getRangeAt(0);
   }
 }
@@ -34,6 +22,28 @@ editor.addEventListener("mouseup", saveSelection);
 editor.addEventListener("keyup", saveSelection);
 editor.addEventListener("blur", saveSelection);
 
+/* ===============================
+   FORMATTING ACTIONS
+================================ */
+function format(cmd) {
+  document.execCommand(cmd, false, null);
+  update();
+}
+
+function wrapTag(tag) {
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+
+  const range = sel.getRangeAt(0);
+  const content = range.extractContents();
+
+  const el = document.createElement(tag);
+  el.appendChild(content);
+  range.insertNode(el);
+
+  update();
+}
+
 function applyColor(color) {
   if (!savedRange) return;
 
@@ -41,100 +51,150 @@ function applyColor(color) {
 
   const range = savedRange;
   const content = range.extractContents();
-
   if (!content.textContent.trim()) return;
 
   const font = document.createElement("font");
   font.setAttribute("color", color);
   font.appendChild(content);
-
   range.insertNode(font);
 
-  // Restore cursor
   const sel = window.getSelection();
   sel.removeAllRanges();
   const newRange = document.createRange();
   newRange.setStartAfter(font);
   newRange.collapse(true);
   sel.addRange(newRange);
-
   savedRange = newRange;
+
   update();
 }
 
-function normalizeEditorHTML(html) {
-  return html
-    .replace(/<span style="font-weight:\s*bold[^"]*">/gi, "<b>")
-    .replace(/<\/span>/gi, "</b>")
-    .replace(/<span style="font-style:\s*italic[^"]*">/gi, "<i>")
-    .replace(/<span style="text-decoration:\s*underline[^"]*">/gi, "<u>");
-}
-
+/* ===============================
+   SANITIZATION (DOM BASED)
+================================ */
 function sanitize(html) {
-  return (
-    html
-      // Remove MS Word junk
-      .replace(/class="[^"]*"/gi, "")
-      .replace(/<o:p>|<\/o:p>/gi, "")
+  /* ===============================
+     STAGE 0 — HARD STRIP AI METADATA
+  ================================ */
+  html = html
+    .replace(/\sdata-[a-zA-Z0-9-]+="[^"]*"/g, "")
+    .replace(/\sdata-[a-zA-Z0-9-]+='[^']*'/g, "");
 
-      .replace(/<span[^>]*>/gi, (m) => {
-        const color = m.match(/color:\s*(#[0-9a-fA-F]{3,6})/);
-        return color ? `<font color="${color[1]}">` : "";
-      })
-      .replace(/<\/span>/gi, "</font>")
+  /* ===============================
+     STAGE 1 — PARSE HTML
+  ================================ */
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
 
-      .replace(/style="[^"]*"/gi, (match) =>
-        match.includes("color") ? match : ""
-      )
+  const allowedTags = new Set([
+    "B",
+    "I",
+    "U",
+    "FONT",
+    "SMALL",
+    "BIG",
+    "SUP",
+    "SUB",
+    "BLOCKQUOTE",
+    "A",
+    "H1",
+    "H2",
+    "BR",
+  ]);
 
-      // Normalize strong/em
-      .replace(/<strong>/gi, "<b>")
-      .replace(/<\/strong>/gi, "</b>")
-      .replace(/<em>/gi, "<i>")
-      .replace(/<\/em>/gi, "</i>")
+  function clean(node) {
+    if (node.nodeType === Node.TEXT_NODE) return;
 
-      // Kill div & p, convert to breaks
-      .replace(/<div[^>]*>/gi, "")
-      .replace(/<\/div>/gi, "<br />")
-      .replace(/<p[^>]*>/gi, "")
-      .replace(/<\/p>/gi, "<br /><br />")
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const tag = node.tagName;
 
-      // Convert lists to bullets
-      .replace(/<ul[^>]*>/gi, "")
-      .replace(/<\/ul>/gi, "<br />")
-      .replace(/<li[^>]*>/gi, "• ")
-      .replace(/<\/li>/gi, "<br />")
+      /* Normalize STRONG / EM */
+      if (tag === "STRONG") {
+        const b = document.createElement("b");
+        b.innerHTML = node.innerHTML;
+        node.replaceWith(b);
+        clean(b);
+        return;
+      }
 
-      // Remove unsupported tags completely
-      .replace(/<hr[^>]*>/gi, "<br />")
-      .replace(
-        /<(?!\/?(b|i|u|br|h1|h2|a|blockquote|small|big|sup|sub|font)\b)[^>]+>/gi,
-        ""
-      )
+      if (tag === "EM") {
+        const i = document.createElement("i");
+        i.innerHTML = node.innerHTML;
+        node.replaceWith(i);
+        clean(i);
+        return;
+      }
 
-      // Clean excessive breaks
-      .replace(/(<br\s*\/?>\s*){3,}/gi, "<br /><br />")
-      .trim()
-  );
+      /* Handle lists safely */
+      if (tag === "LI") {
+        node.replaceWith(
+          document.createTextNode("• "),
+          ...node.childNodes,
+          document.createTextNode("\n")
+        );
+        return;
+      }
+
+      if (tag === "UL" || tag === "OL") {
+        node.replaceWith(...node.childNodes, document.createTextNode("\n"));
+        return;
+      }
+
+      /* Paragraphs → spacing */
+      if (tag === "P") {
+        node.replaceWith(...node.childNodes, document.createTextNode("\n\n"));
+        return;
+      }
+
+      /* Remove unsupported tags but keep content */
+      if (!allowedTags.has(tag)) {
+        node.replaceWith(...node.childNodes);
+        return;
+      }
+
+      /* Remove all attributes */
+      [...node.attributes].forEach((attr) => {
+        if (
+          tag === "FONT" &&
+          attr.name === "color" &&
+          /^#[0-9A-Fa-f]{6}$/.test(attr.value)
+        )
+          return;
+
+        if (tag === "A" && attr.name === "href") return;
+
+        node.removeAttribute(attr.name);
+      });
+    }
+
+    [...node.childNodes].forEach(clean);
+  }
+
+  [...doc.body.childNodes].forEach(clean);
+
+  /* ===============================
+     STAGE 2 — FINAL NORMALIZATION
+  ================================ */
+  return doc.body.innerHTML
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\n{4,}/g, "\n\n\n")
+    .trim();
 }
 
+/* ===============================
+   UPDATE PIPELINE
+================================ */
 function update() {
-  const normalized = normalizeEditorHTML(editor.innerHTML);
-  const clean = sanitize(normalized);
+  const clean = sanitize(editor.innerHTML);
   preview.innerHTML = clean;
   output.value = clean;
   updateCounters(clean);
 }
 
-editor.addEventListener("input", update);
-editor.addEventListener("paste", () => {
-  setTimeout(update, 50); // wait for browser paste
-});
-
-// Count charecters
-const shortCount = document.getElementById("shortCount");
-const longCount = document.getElementById("longCount");
-
+/* ===============================
+   CHARACTER COUNTER
+================================ */
 function updateCounters(text) {
   const length = text.replace(/<[^>]+>/g, "").length;
 
@@ -145,9 +205,9 @@ function updateCounters(text) {
   longCount.classList.toggle("over", length > 4000);
 }
 
-// Color palette
-const palette = document.getElementById("palette");
-
+/* ===============================
+   PALETTE
+================================ */
 function togglePalette() {
   palette.classList.toggle("hidden");
 }
@@ -156,3 +216,24 @@ palette.addEventListener("click", (e) => {
   if (!e.target.dataset.color) return;
   applyColor(e.target.dataset.color);
 });
+
+/* ===============================
+   EVENTS
+================================ */
+editor.addEventListener("input", update);
+editor.addEventListener("paste", () => setTimeout(update, 60));
+
+/* ===============================
+   UTIL
+================================ */
+function copyOutput() {
+  output.select();
+  document.execCommand("copy");
+}
+
+function resetAll() {
+  editor.innerHTML = "";
+  preview.innerHTML = "";
+  output.value = "";
+  updateCounters("");
+}

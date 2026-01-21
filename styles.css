@@ -306,3 +306,9 @@ body {
 .hidden {
   display: none;
 }
+
+.editor,
+.phone-preview,
+textarea {
+  white-space: pre-wrap;
+}
