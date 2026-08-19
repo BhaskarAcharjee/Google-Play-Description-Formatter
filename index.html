@@ -51,6 +51,14 @@
         </div>
 
         <div class="header-actions">
+          <button id="apiKeyBtn" class="btn-ghost" title="Set Gemini API Key for AI Features">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 2l-2 2m-2-2l2 2m7 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"></path>
+              <circle cx="7.5" cy="16.5" r="4.5"></circle>
+            </svg>
+            <span id="apiKeyBadgeText">🔑 Gemini Key</span>
+          </button>
+
           <a href="#cheat-sheet" class="btn-ghost" id="viewSpecsBtn">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -102,6 +110,18 @@
           <div class="ai-tools-bar">
             <button id="cleanAiBtn" class="btn-ai-action" title="Strips unsupported AI HTML/Markdown tags and formats for Play Store">
               <span class="ai-sparkle">✨</span> Fix ChatGPT / Gemini Tags
+            </button>
+            <button id="aiCommitBtn" class="btn-gemini-action" title="Auto-generate Play Store Release Notes from Git Commit Messages or Raw Changelogs">
+              <span class="ai-sparkle">📦</span> Commits ➔ Release Notes
+            </button>
+            <button id="aiAsoBtn" class="btn-secondary-action" title="Rewrite and optimize description for Play Store ASO / SEO keywords">
+              🎯 ASO Optimize
+            </button>
+            <button id="aiShortenBtn" class="btn-secondary-action" title="Condense text to fit Play Store character limits">
+              ✂️ Shorten
+            </button>
+            <button id="aiExpandBtn" class="btn-secondary-action" title="Expand text into rich feature descriptions">
+              📈 Expand
             </button>
             <button id="convertMarkdownBtn" class="btn-secondary-action" title="Converts Markdown syntax (**bold**, # heading, - lists) to Play Store HTML">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
@@ -530,6 +550,83 @@
         <div class="modal-footer">
           <button onclick="closeLinkModal()" class="btn-secondary">Cancel</button>
           <button onclick="submitLinkModal()" class="btn-primary">Insert Link</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gemini API Key Modal -->
+    <div id="apiKeyModal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Google Gemini API Settings (Free Tier)</h3>
+          <button onclick="closeApiKeyModal()" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-subtitle">
+            Enter your Google Gemini API key to enable AI ASO optimization, text shortening/expansion, and automated commit log release note generation.
+          </p>
+          <div class="form-group">
+            <label for="geminiApiKeyInput">Gemini API Key:</label>
+            <div class="input-with-action">
+              <input type="password" id="geminiApiKeyInput" placeholder="AIzaSy..." />
+              <button type="button" id="toggleApiKeyVisibilityBtn" onclick="toggleApiKeyVisibility()" class="btn-xs-secondary">Show</button>
+            </div>
+            <span class="input-help">
+              Key is stored locally in your browser (localStorage) and sent directly to Google AI.
+            </span>
+          </div>
+
+          <div class="form-group">
+            <label for="geminiModelSelect">Gemini Model:</label>
+            <select id="geminiModelSelect" class="form-select">
+              <option value="gemini-1.5-flash">Gemini 1.5 Flash (Recommended - Free Tier Standard)</option>
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash (Latest Features)</option>
+              <option value="gemini-3.6-flash">Gemini 3.6 Flash (High Performance)</option>
+              <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep Reasoning &amp; Quality)</option>
+              <option value="gemini-1.5-flash-8b">Gemini 1.5 Flash 8B (Ultra Fast)</option>
+            </select>
+          </div>
+
+          <div class="key-status-box">
+            <span>Status: <strong id="keyStatusText" class="status-missing">No Key Saved</strong></span>
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" class="link-external">
+              Get Free Gemini API Key ↗
+            </a>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button onclick="removeApiKey()" class="btn-danger-action">Remove Key</button>
+          <button onclick="closeApiKeyModal()" class="btn-secondary">Cancel</button>
+          <button onclick="saveApiKeyModal()" class="btn-primary">Save API Key</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Commit Logs to Release Notes Modal -->
+    <div id="commitModal" class="modal-overlay hidden">
+      <div class="modal-card modal-large">
+        <div class="modal-header">
+          <h3>📦 Auto-Generate Release Notes from Commit Logs</h3>
+          <button onclick="closeCommitModal()" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-subtitle">
+            Paste your raw <code>git log</code>, commit messages, PR titles, or developer release notes below. Gemini will transform them into clean, concise Play Store Release Notes (&lt; 500 chars).
+          </p>
+          <div class="form-group">
+            <label for="commitInput">Paste Git Commits / Developer Changelog:</label>
+            <textarea id="commitInput" rows="7" placeholder="e.g.
+feat: add dark mode theme support
+fix: resolve crash when restoring purchases
+perf: optimize database query speed
+chore: update gradle dependencies"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button onclick="closeCommitModal()" class="btn-secondary">Cancel</button>
+          <button id="generateCommitReleaseNotesBtn" onclick="submitCommitReleaseNotes()" class="btn-primary">
+            <span class="ai-sparkle">✨</span> Generate Release Notes
+          </button>
         </div>
       </div>
     </div>

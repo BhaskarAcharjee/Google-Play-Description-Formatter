@@ -666,3 +666,359 @@ editor.addEventListener("paste", (e) => {
 
 // Initial update on page load
 update();
+
+/* ==========================================================================
+   Gemini API Key Management & Free Tier AI Engine
+   ========================================================================== */
+
+const apiKeyModal = document.getElementById("apiKeyModal");
+const commitModal = document.getElementById("commitModal");
+const geminiApiKeyInput = document.getElementById("geminiApiKeyInput");
+const geminiModelSelect = document.getElementById("geminiModelSelect");
+const keyStatusText = document.getElementById("keyStatusText");
+const apiKeyBadgeText = document.getElementById("apiKeyBadgeText");
+
+function getGeminiApiKey() {
+  return localStorage.getItem("gemini_api_key") || "";
+}
+
+function setGeminiApiKey(key) {
+  if (key) {
+    localStorage.setItem("gemini_api_key", key.trim());
+  } else {
+    localStorage.removeItem("gemini_api_key");
+  }
+  updateApiKeyStatusUI();
+}
+
+function getGeminiModel() {
+  const model = localStorage.getItem("gemini_model");
+  // If stored model is deprecated (e.g. gemini-2.0-flash), default to gemini-1.5-flash
+  if (!model || model === "gemini-2.0-flash" || model === "gemini-2.0-flash-lite") {
+    return "gemini-1.5-flash";
+  }
+  return model;
+}
+
+function setGeminiModel(model) {
+  if (model) {
+    localStorage.setItem("gemini_model", model);
+  }
+}
+
+function updateApiKeyStatusUI() {
+  const key = getGeminiApiKey();
+  const model = getGeminiModel();
+  if (key) {
+    if (keyStatusText) {
+      keyStatusText.textContent = `Saved (${model}) ✓`;
+      keyStatusText.className = "status-saved";
+    }
+    if (apiKeyBadgeText) {
+      apiKeyBadgeText.textContent = `🔑 Key Saved (${model}) ✓`;
+    }
+  } else {
+    if (keyStatusText) {
+      keyStatusText.textContent = "No Key Saved";
+      keyStatusText.className = "status-missing";
+    }
+    if (apiKeyBadgeText) {
+      apiKeyBadgeText.textContent = "🔑 Gemini Key";
+    }
+  }
+}
+
+function openApiKeyModal() {
+  const currentKey = getGeminiApiKey();
+  const currentModel = getGeminiModel();
+  if (geminiApiKeyInput) {
+    geminiApiKeyInput.value = currentKey;
+  }
+  if (geminiModelSelect) {
+    geminiModelSelect.value = currentModel;
+  }
+  updateApiKeyStatusUI();
+  apiKeyModal.classList.remove("hidden");
+}
+
+function closeApiKeyModal() {
+  apiKeyModal.classList.add("hidden");
+}
+
+function saveApiKeyModal() {
+  const key = geminiApiKeyInput.value.trim();
+  const model = geminiModelSelect ? geminiModelSelect.value : "gemini-1.5-flash";
+  if (!key) {
+    showToast("Please enter a valid Gemini API Key!");
+    return;
+  }
+  setGeminiApiKey(key);
+  setGeminiModel(model);
+  closeApiKeyModal();
+  showToast(`🔑 Saved Key & Model (${model})!`);
+}
+
+function removeApiKey() {
+  setGeminiApiKey("");
+  if (geminiApiKeyInput) geminiApiKeyInput.value = "";
+  showToast("API Key removed.");
+}
+
+function toggleApiKeyVisibility() {
+  const btn = document.getElementById("toggleApiKeyVisibilityBtn");
+  if (geminiApiKeyInput.type === "password") {
+    geminiApiKeyInput.type = "text";
+    btn.textContent = "Hide";
+  } else {
+    geminiApiKeyInput.type = "password";
+    btn.textContent = "Show";
+  }
+}
+
+document.getElementById("apiKeyBtn")?.addEventListener("click", openApiKeyModal);
+
+/* Commit Modal Controls */
+function openCommitModal() {
+  commitModal.classList.remove("hidden");
+  document.getElementById("commitInput").focus();
+}
+
+function closeCommitModal() {
+  commitModal.classList.add("hidden");
+}
+
+document.getElementById("aiCommitBtn")?.addEventListener("click", () => {
+  if (!getGeminiApiKey()) {
+    openApiKeyModal();
+    showToast("Please enter your Gemini API key first!");
+    return;
+  }
+  openCommitModal();
+});
+
+/* ==========================================================================
+   Gemini API Call Engine
+   ========================================================================== */
+const GEMINI_SYSTEM_INSTRUCTION = `You are an expert Google Play Store ASO (App Store Optimization) copywriter.
+Your task is to write high-converting, professional app descriptions and release notes for Google Play Store.
+
+CRITICAL PLAY STORE HTML TAG RULES:
+1. ONLY use supported Google Play HTML tags: <b>, <i>, <u>, <font color="#HEX">, <small>, <sup>, <sub>, <blockquote>, <h1>, <h2>, <h3>, <a>, and <en-US> locale tags.
+2. DO NOT use <span>, <div>, <p>, <ul>, <ol>, <li>, <code>, <pre>, style, or custom CSS classes.
+3. For bullet lists, use standard bullet symbol '• ' (e.g. • <b>Feature Title:</b> Description).
+4. Keep content clean, concise, and structured.`;
+
+async function callGeminiApi(prompt, systemInstruction = GEMINI_SYSTEM_INSTRUCTION, requestedModel = null) {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    openApiKeyModal();
+    throw new Error("Gemini API Key missing. Please set your free API key.");
+  }
+
+  const model = requestedModel || getGeminiModel();
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const payload = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: prompt }]
+      }
+    ]
+  };
+
+  if (systemInstruction) {
+    payload.systemInstruction = {
+      parts: [{ text: systemInstruction }]
+    };
+  }
+
+  let response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    const msg = errData.error?.message || `Gemini API Error (HTTP ${response.status})`;
+
+    // If model is deprecated or unavailable, auto-fallback to gemini-1.5-flash or gemini-2.5-flash
+    if (msg.includes("no longer available") || msg.includes("NOT_FOUND") || msg.includes("not found")) {
+      const fallbackModel = model === "gemini-1.5-flash" ? "gemini-2.5-flash" : "gemini-1.5-flash";
+      console.warn(`Model ${model} unavailable. Falling back to ${fallbackModel}...`);
+      setGeminiModel(fallbackModel);
+      return await callGeminiApi(prompt, systemInstruction, fallbackModel);
+    }
+
+    throw new Error(msg);
+  }
+
+  const data = await response.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error("No output generated from Gemini API.");
+  }
+
+  return text;
+}
+
+/* ==========================================================================
+   AI Action Functions
+   ========================================================================== */
+
+/* 1. Commit Messages -> Release Notes */
+async function submitCommitReleaseNotes() {
+  const commitsText = document.getElementById("commitInput").value.trim();
+  if (!commitsText) {
+    showToast("Please paste commit messages or changelog first!");
+    return;
+  }
+
+  const btn = document.getElementById("generateCommitReleaseNotesBtn");
+  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Generating...`;
+
+  try {
+    const prompt = `Convert the following raw git commit log / developer changelog into clean, professional Google Play Store Release Notes wrapped in <en-US>...</en-US> tags.
+Limit total release notes to MAXIMUM 500 characters constraint. Use • <b>Title:</b> Description bullet points. Filter out internal dev noise (like merge commits, CI/CD, gradle updates, refractors) and focus on user-facing benefits and fixes.
+
+RAW COMMITS/CHANGELOG:
+${commitsText}`;
+
+    const rawAiOutput = await callGeminiApi(prompt);
+    const cleaned = sanitize(rawAiOutput);
+
+    closeCommitModal();
+    editor.innerHTML = cleaned;
+    update();
+    showToast("📦 Generated Play Release Notes from Commits!");
+  } catch (err) {
+    alert("Gemini AI Error: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
+}
+
+/* 2. ASO Optimize */
+document.getElementById("aiAsoBtn")?.addEventListener("click", async () => {
+  const currentText = editor.innerText || editor.textContent;
+  if (!currentText.trim()) {
+    showToast("Please enter or paste an app description to optimize!");
+    return;
+  }
+
+  if (!getGeminiApiKey()) {
+    openApiKeyModal();
+    showToast("Please enter your Gemini API key first!");
+    return;
+  }
+
+  const btn = document.getElementById("aiAsoBtn");
+  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Optimizing...`;
+
+  try {
+    const prompt = `Rewrite and optimize the following app description for Google Play Store ASO (App Store Optimization) and SEO.
+Enhance keyword formatting, wrap key sections in <h2><b>Header Title</b></h2>, format bullet lists as • <b>Feature:</b> Description, and make the text highly engaging for downloads.
+
+CURRENT DESCRIPTION:
+${currentText}`;
+
+    const rawAiOutput = await callGeminiApi(prompt);
+    const cleaned = sanitize(rawAiOutput);
+
+    editor.innerHTML = cleaned;
+    update();
+    showToast("🎯 Description ASO & SEO Optimized!");
+  } catch (err) {
+    alert("Gemini AI Error: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
+});
+
+/* 3. Shorten Text */
+document.getElementById("aiShortenBtn")?.addEventListener("click", async () => {
+  const currentText = editor.innerText || editor.textContent;
+  if (!currentText.trim()) {
+    showToast("Please enter text to shorten!");
+    return;
+  }
+
+  if (!getGeminiApiKey()) {
+    openApiKeyModal();
+    showToast("Please enter your Gemini API key first!");
+    return;
+  }
+
+  const btn = document.getElementById("aiShortenBtn");
+  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Shortening...`;
+
+  try {
+    const prompt = `Condense and shorten the following app description to fit within Google Play Store character limits while retaining all core value propositions and clean • <b>Header:</b> Text formatting.
+
+TEXT TO SHORTEN:
+${currentText}`;
+
+    const rawAiOutput = await callGeminiApi(prompt);
+    const cleaned = sanitize(rawAiOutput);
+
+    editor.innerHTML = cleaned;
+    update();
+    showToast("✂️ Shortened text successfully!");
+  } catch (err) {
+    alert("Gemini AI Error: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
+});
+
+/* 4. Expand Text */
+document.getElementById("aiExpandBtn")?.addEventListener("click", async () => {
+  const currentText = editor.innerText || editor.textContent;
+  if (!currentText.trim()) {
+    showToast("Please enter text to expand!");
+    return;
+  }
+
+  if (!getGeminiApiKey()) {
+    openApiKeyModal();
+    showToast("Please enter your Gemini API key first!");
+    return;
+  }
+
+  const btn = document.getElementById("aiExpandBtn");
+  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Expanding...`;
+
+  try {
+    const prompt = `Expand the following app description into a full, feature-rich Google Play Store app listing. Include an engaging overview, key feature section with • <b>Feature:</b> Description bullet points, user benefits, and call to action.
+
+TEXT TO EXPAND:
+${currentText}`;
+
+    const rawAiOutput = await callGeminiApi(prompt);
+    const cleaned = sanitize(rawAiOutput);
+
+    editor.innerHTML = cleaned;
+    update();
+    showToast("📈 Expanded description!");
+  } catch (err) {
+    alert("Gemini AI Error: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
+});
+
+// Initialize API Key UI Status on load
+updateApiKeyStatusUI();

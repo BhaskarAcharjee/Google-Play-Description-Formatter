@@ -10,26 +10,37 @@
 
 ## 🌟 Key Features
 
-### 1. ⚡ Fix ChatGPT & Gemini Unsupported Tags
-When copying generated app descriptions from AI models (ChatGPT, Gemini, Claude) or rich text editors (Microsoft Word, Google Docs), they often introduce unsupported HTML and CSS tags (`<div>`, `<span>`, `<p>`, `<ul>`, `<li>`, `<table>`, `<code>`, `<style>`, inline `style="..."` attributes) that cause errors or ugly rendering in Google Play Console.
-- **Automatic Sanitization**: Strips invalid container tags while preserving inner text.
+### 1. ⚡ Fix ChatGPT & Gemini Unsupported Tags & Citation Footnotes
+When copying generated app descriptions from AI models (ChatGPT, Gemini, Claude) or rich text editors (Microsoft Word, Google Docs), they often introduce unsupported HTML/CSS tags (`<div>`, `<span>`, `<p>`, `<ul>`, `<li>`, `<table>`, `<code>`, `<style>`, inline `style="..."` attributes) and internal AI citation footnotes (`<source-footnote>`, `<sources-carousel-inline>`, `ng-version`, `_nghost-*`) that break Play Console.
+- **Automatic Multi-Pass Sanitization**: Strips invalid container tags, citation chips, and custom Angular elements while preserving text.
 - **Bullet List Conversion**: Automatically converts `<ul><li>` list structures into clean Unicode bullet points (`• `).
 - **Markdown Conversion**: Automatically parses Markdown syntax (`**bold**`, `*italic*`, `# Headings`, `[Link](URL)`, `- list items`) into 100% valid Google Play Console HTML.
 
-### 2. 📱 Dual Platform Live Preview (Android App vs Web Store)
+### 2. 🤖 Gemini API Integration & AI Tool Suite (Free Tier)
+Connect your free Google Gemini API key to unlock direct AI copywriting features in your browser:
+- **📦 Commit Log ➔ Release Notes**: Auto-converts raw `git log` output, PR titles, or developer notes into concise Play Store Release Notes (< 500 chars) wrapped in `<en-US>` tags.
+- **🎯 ASO & SEO Optimizer**: Rewrites app descriptions to boost Google Play Store keyword density and conversion formatting.
+- **✂️ Shorten & 📈 Expand**: One-click actions to condense text to fit Play Console character constraints or generate detailed feature sections.
+
+### 3. 🚀 Play Store Release Notes (What's New) & Locale Tag Support
+- **500 Character Limit Constraint**: Dedicated character counter and visual progress bar for Google Play Release Notes (500 limit).
+- **Locale Tag Support**: Formats notes wrapped in `<en-US>...</en-US>` (or custom locale tags) for Play Console and Fastlane deployments.
+
+### 4. 📱 Dual Platform Live Preview (Android App vs Web Store)
 Google Play Store renders descriptions differently on the Android App compared to `play.google.com` on desktop browsers:
 - **📱 Android App View**: Shows full support for colored text (`<font color="...">`), left blue border lines on `<blockquote>`, and bold headings.
 - **🌐 Play Store Web View**: Demonstrates web fallbacks where font colors and blockquote borders are stripped according to Google Play specifications.
 
-### 3. ✍️ Rich WYSIWYG Editor & ASO Toolbar
+### 5. ✍️ Rich WYSIWYG Editor & ASO Toolbar
 - **Formatting Tools**: Bold (`<b>`), Italic (`<i>`), Underline (`<u>`), Small (`<small>`), Superscript (`<sup>`), Subscript (`<sub>`), Blockquotes (`<blockquote>`), Headings (`<h1>`, `<h2>`, `<h3>`).
 - **Color Picker**: Curated ASO preset color swatches + custom hex color picker for `<font color="...">`.
 - **Link Builder**: Insert Play Store links (`<a href="...">`).
 - **Quick Emojis**: One-click emoji palette (`★`, `✓`, `🚀`, `🔥`, `⚡`, `⭐`, `📱`, `▶`, `•`).
 - **Best Practices One-Click Fix**: Wraps headings in `<b>` tags (`<h1><b>Header</b></h1>`) per Play Console best practices.
 
-### 4. 📊 Live Character Counters & Progress Indicators
+### 6. 📊 Live Character Counters & Progress Indicators
 - **Short Description**: Track against the **80 character limit**.
+- **Release Notes (What's New)**: Track against the **500 character limit**.
 - **Long Description**: Track against the **4000 character limit**.
 - **HTML Tag Inclusion Toggle**: Option to calculate character counts with or without HTML tags (matching Play Console's raw string character count rules).
 - **Visual Alert System**: Progress bar changes color from green to orange and red when reaching or exceeding character limits.

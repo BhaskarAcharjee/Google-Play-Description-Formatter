@@ -1147,7 +1147,8 @@ textarea#output {
   color: var(--text-muted);
 }
 
-.form-group input {
+.form-group input,
+.form-group select.form-select {
   background: var(--input-bg);
   border: 1px solid var(--panel-border);
   color: var(--text-main);
@@ -1157,7 +1158,17 @@ textarea#output {
   outline: none;
 }
 
-.form-group input:focus {
+.form-group select.form-select {
+  cursor: pointer;
+}
+
+.form-group select.form-select option {
+  background: var(--input-bg);
+  color: var(--text-main);
+}
+
+.form-group input:focus,
+.form-group select.form-select:focus {
   border-color: #00e676;
 }
 
@@ -1194,5 +1205,142 @@ textarea#output {
   to {
     transform: translateY(0);
     opacity: 1;
+  }
+}
+
+/* Gemini AI Feature Extensions */
+.btn-gemini-action {
+  background: linear-gradient(135deg, #7c3aed, #0288d1);
+  color: #ffffff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.3);
+  transition: var(--transition-fast);
+}
+
+.btn-gemini-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(124, 58, 237, 0.45);
+}
+
+.modal-large {
+  max-width: 620px;
+}
+
+.modal-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.modal-subtitle code {
+  font-family: "Fira Code", monospace;
+  background: var(--input-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #00e676;
+}
+
+.input-with-action {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.input-with-action input {
+  flex: 1;
+}
+
+.btn-xs-secondary {
+  background: var(--btn-secondary-bg);
+  color: var(--text-main);
+  border: 1px solid var(--panel-border);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-xs-secondary:hover {
+  background: var(--btn-secondary-hover);
+}
+
+.input-help {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+.key-status-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--input-bg);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--panel-border);
+  font-size: 12.5px;
+}
+
+.status-saved {
+  color: #10b981;
+}
+
+.status-missing {
+  color: #f59e0b;
+}
+
+.link-external {
+  color: #0288d1;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.link-external:hover {
+  text-decoration: underline;
+}
+
+textarea#commitInput {
+  width: 100%;
+  background: var(--input-bg);
+  color: var(--text-main);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  font-family: "Fira Code", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  outline: none;
+  resize: vertical;
+}
+
+textarea#commitInput:focus {
+  border-color: #00e676;
+}
+
+/* Spinner loading indicator */
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #ffffff;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
