@@ -253,185 +253,159 @@ function parseMarkdown(text) {
 }
 
 /**
- * Stage 2: Deep DOM-based HTML Sanitizer & Play Console Enforcement
+ * Stage 2: Deep HTML Sanitizer & Play Console Tag Enforcement
  */
 function sanitize(inputHtml) {
   if (!inputHtml) return "";
 
-  // Pre-clean AI metadata attributes
-  let processedText = inputHtml
-    .replace(/\sdata-[a-zA-Z0-9-]+="[^"]*"/g, "")
-    .replace(/\sdata-[a-zA-Z0-9-]+='[^']*'/g, "");
+  let str = inputHtml;
 
-  // Check if string contains unparsed markdown
+  // 1. Remove comments
+  str = str.replace(/<!---->|<!--[\s\S]*?-->/g, "");
+
+  // 2. Remove AI footnote, carousel elements, and custom angular tags completely
+  str = str.replace(/<source-footnote[\s\S]*?<\/source-footnote>/gi, "");
+  str = str.replace(/<sources-carousel-inline[\s\S]*?<\/sources-carousel-inline>/gi, "");
+  str = str.replace(/<sources-carousel[\s\S]*?<\/sources-carousel>/gi, "");
+  str = str.replace(/<footnote[\s\S]*?<\/footnote>/gi, "");
+  str = str.replace(/<citation-chip[\s\S]*?<\/citation-chip>/gi, "");
+
+  // 3. Remove custom elements with hyphens (except locale tags like en-US)
+  str = str.replace(/<([a-z0-9]+-[a-z0-9-]+)[^>]*>[\s\S]*?<\/\1>/gi, (match, tagName) => {
+    if (/^[a-z]{2,3}-[a-z]{2,4}$/i.test(tagName)) {
+      return match; // Preserve <en-US> locale tags
+    }
+    return ""; // Drop custom Angular/web component elements
+  });
+
+  // 4. Clean empty spans around bullet points and reconnect orphaned bullet lines
+  str = str.replace(/•\s*<span[^>]*>\s*<\/span>\s*/gi, "• ");
+  str = str.replace(/•\s*\n+\s*(<b>|<[a-z0-9]+>|[A-Za-z0-9])/gi, "• $1");
+
+  // 5. DOM parsing pass for tag normalization
   if (
-    /^\s*#|[\*\-_]{2,}|\[.*\]\(.*\)/.test(processedText) &&
-    !/<[a-z][\s\S]*>/i.test(processedText)
+    /^\s*#|[\*\-_]{2,}|\[.*\]\(.*\)/.test(str) &&
+    !/<[a-z][\s\S]*>/i.test(str)
   ) {
-    processedText = parseMarkdown(processedText);
+    str = parseMarkdown(str);
   }
 
   const parser = new DOMParser();
-  const doc = parser.parseFromString(processedText, "text/html");
+  const doc = parser.parseFromString(str, "text/html");
 
-  const allowedTags = new Set([
-    "B",
-    "I",
-    "U",
-    "FONT",
-    "SMALL",
-    "BIG",
-    "SUP",
-    "SUB",
-    "BLOCKQUOTE",
-    "A",
-    "H1",
-    "H2",
-    "H3",
-    "BR",
-  ]);
+  // Purge unwanted elements from DOM
+  const dropSelectors = "img, script, style, iframe, center, button, input, source-footnote, footnote, citation-chip, sources-carousel-inline, sources-carousel, c-wiz, g-wiz";
+  doc.body.querySelectorAll(dropSelectors).forEach((el) => el.remove());
 
-  function cleanNode(node) {
-    if (!node) return;
+  // Convert LI to bullet points
+  doc.body.querySelectorAll("li").forEach((li) => {
+    const bulletText = document.createTextNode("• ");
+    const newlineText = document.createTextNode("\n");
+    li.replaceWith(bulletText, ...li.childNodes, newlineText);
+  });
 
-    if (node.nodeType === Node.COMMENT_NODE) {
-      node.remove();
-      return;
+  // Convert P to linebreaks
+  doc.body.querySelectorAll("p").forEach((p) => {
+    const spacingText = document.createTextNode("\n\n");
+    p.replaceWith(...p.childNodes, spacingText);
+  });
+
+  // Convert UL/OL to linebreaks
+  doc.body.querySelectorAll("ul, ol").forEach((ul) => {
+    const newlineText = document.createTextNode("\n");
+    ul.replaceWith(...ul.childNodes, newlineText);
+  });
+
+  // Unwrap unsupported container tags (SPAN, DIV, SECTION, ARTICLE, TABLE, etc.) repeatedly
+  let hasContainers = true;
+  let maxLoop = 50;
+  while (hasContainers && maxLoop > 0) {
+    maxLoop--;
+    const containers = [...doc.body.querySelectorAll("span, div, section, article, header, footer, table, tbody, tr, td, th")];
+    if (containers.length === 0) {
+      hasContainers = false;
+      break;
     }
-
-    if (node.nodeType === Node.TEXT_NODE) return;
-
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      const tag = node.tagName.toUpperCase();
-
-      // Recurse on children first
-      [...node.childNodes].forEach(cleanNode);
-
-      // Drop AI citation footnotes, images, scripts, styling elements completely
-      if (
-        tag === "IMG" ||
-        tag === "SCRIPT" ||
-        tag === "STYLE" ||
-        tag === "IFRAME" ||
-        tag === "CENTER" ||
-        tag === "SOURCE-FOOTNOTE" ||
-        tag === "FOOTNOTE" ||
-        tag.includes("FOOTNOTE") ||
-        tag.includes("CITATION")
-      ) {
-        node.remove();
-        return;
+    let unwrappedAny = false;
+    containers.forEach((container) => {
+      const isLocale = /^[A-Z]{2,3}(-[A-Z]{2,4})?$/i.test(container.tagName);
+      if (!isLocale) {
+        container.replaceWith(...container.childNodes);
+        unwrappedAny = true;
       }
-
-      // Normalize STRONG -> B
-      if (tag === "STRONG") {
-        const b = document.createElement("b");
-        b.innerHTML = node.innerHTML;
-        node.replaceWith(b);
-        return;
-      }
-
-      // Normalize EM -> I
-      if (tag === "EM") {
-        const i = document.createElement("i");
-        i.innerHTML = node.innerHTML;
-        node.replaceWith(i);
-        return;
-      }
-
-      // Normalize H4, H5, H6 -> H3
-      if (tag === "H4" || tag === "H5" || tag === "H6") {
-        const h3 = document.createElement("h3");
-        h3.innerHTML = node.innerHTML;
-        node.replaceWith(h3);
-        return;
-      }
-
-      // Best Practice Enforcement for Headings: <h1><b>...</b></h1>
-      if (tag === "H1" || tag === "H2" || tag === "H3") {
-        if (!node.querySelector("b")) {
-          const b = document.createElement("b");
-          b.innerHTML = node.innerHTML;
-          node.innerHTML = "";
-          node.appendChild(b);
-        }
-      }
-
-      // Convert List Items (LI) to • bullets
-      if (tag === "LI") {
-        const bulletText = document.createTextNode("• ");
-        const newlineText = document.createTextNode("\n");
-        node.replaceWith(bulletText, ...node.childNodes, newlineText);
-        return;
-      }
-
-      // Strip UL / OL wrappers
-      if (tag === "UL" || tag === "OL") {
-        const newlineText = document.createTextNode("\n");
-        node.replaceWith(...node.childNodes, newlineText);
-        return;
-      }
-
-      // Convert Paragraphs (P) to line breaks
-      if (tag === "P") {
-        const spacingText = document.createTextNode("\n\n");
-        node.replaceWith(...node.childNodes, spacingText);
-        return;
-      }
-
-      // Preserve Play Release Notes locale tags like <en-US>, <es-ES>, etc.
-      const isLocaleTag = /^[A-Z]{2,3}(-[A-Z]{2,4})?$/.test(tag);
-
-      // Strip unsupported container tags (DIV, SPAN, TABLE, CODE, PRE, etc.)
-      if (!allowedTags.has(tag) && !isLocaleTag) {
-        node.replaceWith(...node.childNodes);
-        return;
-      }
-
-      // Filter attributes: Only keep href on <a> and hex color on <font>
-      const attrs = [...node.attributes];
-      attrs.forEach((attr) => {
-        const attrName = attr.name.toLowerCase();
-
-        if (tag === "FONT" && attrName === "color") {
-          const val = attr.value.trim();
-          if (/^#([0-9A-Fa-f]{3}){1,2}$/.test(val) || /^[a-zA-Z]+$/.test(val)) {
-            return;
-          }
-        }
-
-        if (tag === "A" && attrName === "href") {
-          let hrefVal = attr.value.trim();
-          if (!/^https?:\/\//i.test(hrefVal) && !/^mailto:/i.test(hrefVal)) {
-            hrefVal = "https://" + hrefVal;
-            node.setAttribute("href", hrefVal);
-          }
-          return;
-        }
-
-        // Remove all other attributes (style, size, class, id, data-*, ng-*, _nghost*, etc.)
-        node.removeAttribute(attr.name);
-      });
-    }
+    });
+    if (!unwrappedAny) break;
   }
 
-  [...doc.body.childNodes].forEach(cleanNode);
+  // Normalize STRONG -> B, EM -> I, H4-H6 -> H3
+  doc.body.querySelectorAll("strong").forEach((el) => {
+    const b = document.createElement("b");
+    b.innerHTML = el.innerHTML;
+    el.replaceWith(b);
+  });
+  doc.body.querySelectorAll("em").forEach((el) => {
+    const i = document.createElement("i");
+    i.innerHTML = el.innerHTML;
+    el.replaceWith(i);
+  });
+  doc.body.querySelectorAll("h4, h5, h6").forEach((el) => {
+    const h3 = document.createElement("h3");
+    h3.innerHTML = el.innerHTML;
+    el.replaceWith(h3);
+  });
 
-  // Stage 3: String Normalization
+  // Ensure H1-H3 headers have inner <b>
+  doc.body.querySelectorAll("h1, h2, h3").forEach((h) => {
+    if (!h.querySelector("b")) {
+      const b = document.createElement("b");
+      b.innerHTML = h.innerHTML;
+      h.innerHTML = "";
+      h.appendChild(b);
+    }
+  });
+
+  // Clean attributes on all elements: keep only href on <a> and color on <font>
+  doc.body.querySelectorAll("*").forEach((node) => {
+    const tag = node.tagName.toUpperCase();
+    const attrs = [...node.attributes];
+    attrs.forEach((attr) => {
+      const attrName = attr.name.toLowerCase();
+      if (tag === "FONT" && attrName === "color") {
+        const val = attr.value.trim();
+        if (/^#([0-9A-Fa-f]{3}){1,2}$/.test(val) || /^[a-zA-Z]+$/.test(val)) {
+          return;
+        }
+      }
+      if (tag === "A" && attrName === "href") {
+        let hrefVal = attr.value.trim();
+        if (!/^https?:\/\//i.test(hrefVal) && !/^mailto:/i.test(hrefVal)) {
+          hrefVal = "https://" + hrefVal;
+          node.setAttribute("href", hrefVal);
+        }
+        return;
+      }
+      node.removeAttribute(attr.name);
+    });
+  });
+
   let cleanHtml = doc.body.innerHTML;
 
-  // Clean empty tags like <font></font> or <b></b> or empty <sup></sup>
-  cleanHtml = cleanHtml
-    .replace(/<(font|b|i|u|small|sup|sub|blockquote)><\/\1>/gi, "")
-    .replace(/<b\s*><\/b>/gi, "");
+  // Clean empty tags
+  let prev;
+  do {
+    prev = cleanHtml;
+    cleanHtml = cleanHtml.replace(/<(font|b|i|u|small|sup|sub|blockquote)>\s*<\/\1>/gi, "");
+  } while (cleanHtml !== prev);
 
-  // Clean leftover comments
-  cleanHtml = cleanHtml.replace(/<!---->|<!--[\s\S]*?-->/g, "");
+  // Re-connect orphaned bullet points after tag unwrapping
+  cleanHtml = cleanHtml.replace(/•\s*\n+\s*(<b>|<[a-z0-9]+>|[A-Za-z0-9])/gi, "• $1");
+  cleanHtml = cleanHtml.replace(/•\s*(?=\n|•|$)/g, "");
 
-  // Normalize spaces and line breaks
+  // Final string normalization
   cleanHtml = cleanHtml
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/&nbsp;/g, " ")
+    .replace(/ \./g, ".")
     .replace(/[ \t]{2,}/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -682,7 +656,12 @@ editor.addEventListener("input", update);
 countTagsCheckbox.addEventListener("change", update);
 
 editor.addEventListener("paste", (e) => {
-  setTimeout(update, 60);
+  setTimeout(() => {
+    const rawContent = editor.innerHTML;
+    const cleaned = sanitize(rawContent);
+    editor.innerHTML = cleaned;
+    update();
+  }, 10);
 });
 
 // Initial update on page load
