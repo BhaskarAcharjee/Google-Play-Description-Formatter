@@ -107,6 +107,10 @@
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
               Convert Markdown
             </button>
+            <button id="formatReleaseNotesBtn" class="btn-secondary-action" title="Format as Google Play Release Notes wrapped in <en-US> (500 char limit)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+              &lt;en-US&gt; Release Notes
+            </button>
             <button id="bestPracticesBtn" class="btn-secondary-action" title="Applies Play Store ASO best practices (wrap headers in <b>, link formats)">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
               Best Practices
@@ -196,7 +200,7 @@
             id="editor"
             class="editor"
             contenteditable="true"
-            placeholder="Paste your app description here (Markdown, Word, or AI generated text from ChatGPT/Gemini)..."
+            placeholder="Paste your app description or release notes here (Markdown, Word, ChatGPT/Gemini output)..."
           ></div>
 
           <!-- Live Character Counters & Progress Indicators -->
@@ -222,6 +226,17 @@
                 </div>
                 <div class="progress-track">
                   <div id="shortProgressBar" class="progress-fill" style="width: 0%"></div>
+                </div>
+              </div>
+
+              <!-- Release Notes Counter -->
+              <div class="progress-item">
+                <div class="progress-labels">
+                  <span class="limit-name">Release Notes (What's New)</span>
+                  <span id="releaseCountText" class="count-val">0 / 500</span>
+                </div>
+                <div class="progress-track">
+                  <div id="releaseProgressBar" class="progress-fill" style="width: 0%"></div>
                 </div>
               </div>
 
@@ -381,6 +396,12 @@
               </tr>
             </thead>
             <tbody>
+              <tr>
+                <td><code>&lt;en-US&gt;Text&lt;/en-US&gt;</code></td>
+                <td><span class="badge badge-success">Release Notes (500 max)</span></td>
+                <td><span class="badge badge-success">Supported</span></td>
+                <td>Google Play Console release notes locale tags. 500 characters max limit.</td>
+              </tr>
               <tr>
                 <td><code>http://phiture.com</code></td>
                 <td><span class="badge badge-success">Clickable Link</span></td>

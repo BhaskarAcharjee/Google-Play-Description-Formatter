@@ -9,8 +9,10 @@ const previewWeb = document.getElementById("previewWeb");
 const output = document.getElementById("output");
 
 const shortCountText = document.getElementById("shortCountText");
+const releaseCountText = document.getElementById("releaseCountText");
 const longCountText = document.getElementById("longCountText");
 const shortProgressBar = document.getElementById("shortProgressBar");
+const releaseProgressBar = document.getElementById("releaseProgressBar");
 const longProgressBar = document.getElementById("longProgressBar");
 const countTagsCheckbox = document.getElementById("countTagsCheckbox");
 
@@ -290,17 +292,42 @@ function sanitize(inputHtml) {
   ]);
 
   function cleanNode(node) {
+    if (!node) return;
+
+    if (node.nodeType === Node.COMMENT_NODE) {
+      node.remove();
+      return;
+    }
+
     if (node.nodeType === Node.TEXT_NODE) return;
 
     if (node.nodeType === Node.ELEMENT_NODE) {
       const tag = node.tagName.toUpperCase();
+
+      // Recurse on children first
+      [...node.childNodes].forEach(cleanNode);
+
+      // Drop AI citation footnotes, images, scripts, styling elements completely
+      if (
+        tag === "IMG" ||
+        tag === "SCRIPT" ||
+        tag === "STYLE" ||
+        tag === "IFRAME" ||
+        tag === "CENTER" ||
+        tag === "SOURCE-FOOTNOTE" ||
+        tag === "FOOTNOTE" ||
+        tag.includes("FOOTNOTE") ||
+        tag.includes("CITATION")
+      ) {
+        node.remove();
+        return;
+      }
 
       // Normalize STRONG -> B
       if (tag === "STRONG") {
         const b = document.createElement("b");
         b.innerHTML = node.innerHTML;
         node.replaceWith(b);
-        cleanNode(b);
         return;
       }
 
@@ -309,7 +336,6 @@ function sanitize(inputHtml) {
         const i = document.createElement("i");
         i.innerHTML = node.innerHTML;
         node.replaceWith(i);
-        cleanNode(i);
         return;
       }
 
@@ -318,7 +344,6 @@ function sanitize(inputHtml) {
         const h3 = document.createElement("h3");
         h3.innerHTML = node.innerHTML;
         node.replaceWith(h3);
-        cleanNode(h3);
         return;
       }
 
@@ -354,20 +379,11 @@ function sanitize(inputHtml) {
         return;
       }
 
-      // Strip completely unsupported container tags (DIV, SPAN, TABLE, CODE, PRE, etc.)
-      if (!allowedTags.has(tag)) {
-        // If it's an image, style, or script, drop it completely
-        if (
-          tag === "IMG" ||
-          tag === "SCRIPT" ||
-          tag === "STYLE" ||
-          tag === "IFRAME" ||
-          tag === "CENTER"
-        ) {
-          node.remove();
-          return;
-        }
-        // Otherwise, keep inner child text/nodes and unwrap tag
+      // Preserve Play Release Notes locale tags like <en-US>, <es-ES>, etc.
+      const isLocaleTag = /^[A-Z]{2,3}(-[A-Z]{2,4})?$/.test(tag);
+
+      // Strip unsupported container tags (DIV, SPAN, TABLE, CODE, PRE, etc.)
+      if (!allowedTags.has(tag) && !isLocaleTag) {
         node.replaceWith(...node.childNodes);
         return;
       }
@@ -378,7 +394,6 @@ function sanitize(inputHtml) {
         const attrName = attr.name.toLowerCase();
 
         if (tag === "FONT" && attrName === "color") {
-          // Allow hex colors (#RRGGBB, #RGB) or valid color names
           const val = attr.value.trim();
           if (/^#([0-9A-Fa-f]{3}){1,2}$/.test(val) || /^[a-zA-Z]+$/.test(val)) {
             return;
@@ -386,7 +401,6 @@ function sanitize(inputHtml) {
         }
 
         if (tag === "A" && attrName === "href") {
-          // Ensure proper protocol
           let hrefVal = attr.value.trim();
           if (!/^https?:\/\//i.test(hrefVal) && !/^mailto:/i.test(hrefVal)) {
             hrefVal = "https://" + hrefVal;
@@ -395,12 +409,10 @@ function sanitize(inputHtml) {
           return;
         }
 
-        // Remove all other attributes (style, size, class, id, data-*, etc.)
+        // Remove all other attributes (style, size, class, id, data-*, ng-*, _nghost*, etc.)
         node.removeAttribute(attr.name);
       });
     }
-
-    [...node.childNodes].forEach(cleanNode);
   }
 
   [...doc.body.childNodes].forEach(cleanNode);
@@ -408,13 +420,19 @@ function sanitize(inputHtml) {
   // Stage 3: String Normalization
   let cleanHtml = doc.body.innerHTML;
 
-  // Clean empty tags like <font></font> or <b></b>
-  cleanHtml = cleanHtml.replace(/<(font|b|i|u|small|blockquote)><\/\1>/gi, "");
+  // Clean empty tags like <font></font> or <b></b> or empty <sup></sup>
+  cleanHtml = cleanHtml
+    .replace(/<(font|b|i|u|small|sup|sub|blockquote)><\/\1>/gi, "")
+    .replace(/<b\s*><\/b>/gi, "");
 
-  // Normalize line breaks
+  // Clean leftover comments
+  cleanHtml = cleanHtml.replace(/<!---->|<!--[\s\S]*?-->/g, "");
+
+  // Normalize spaces and line breaks
   cleanHtml = cleanHtml
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/&nbsp;/g, " ")
+    .replace(/[ \t]{2,}/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
@@ -469,6 +487,24 @@ function updateCounters(cleanHtml) {
     shortCountText.className = "count-val";
   }
 
+  // Release Notes (500 Limit)
+  if (releaseCountText && releaseProgressBar) {
+    releaseCountText.textContent = `${length} / 500`;
+    const releasePct = Math.min(100, (length / 500) * 100);
+    releaseProgressBar.style.width = `${releasePct}%`;
+
+    if (length > 500) {
+      releaseProgressBar.className = "progress-fill over";
+      releaseCountText.className = "count-val over";
+    } else if (length >= 450) {
+      releaseProgressBar.className = "progress-fill warning";
+      releaseCountText.className = "count-val";
+    } else {
+      releaseProgressBar.className = "progress-fill";
+      releaseCountText.className = "count-val";
+    }
+  }
+
   // Long Description (4000 Limit)
   longCountText.textContent = `${length} / 4000`;
   const longPct = Math.min(100, (length / 4000) * 100);
@@ -505,6 +541,25 @@ document.getElementById("convertMarkdownBtn").addEventListener("click", () => {
   update();
   showToast("📝 Converted Markdown to Play Store HTML!");
 });
+
+const formatReleaseNotesBtn = document.getElementById("formatReleaseNotesBtn");
+if (formatReleaseNotesBtn) {
+  formatReleaseNotesBtn.addEventListener("click", () => {
+    let currentHtml = editor.innerHTML;
+    let cleaned = sanitize(currentHtml);
+
+    if (!/<[a-z]{2,3}(-[a-z]{2,4})?>/i.test(cleaned)) {
+      if (!cleaned.trim()) {
+        cleaned = "Enter or paste your release notes for en-US here";
+      }
+      cleaned = `<en-US>\n${cleaned}\n</en-US>`;
+    }
+
+    editor.innerText = cleaned;
+    update();
+    showToast("🚀 Formatted as <en-US> Play Release Notes!");
+  });
+}
 
 document.getElementById("bestPracticesBtn").addEventListener("click", () => {
   let cleaned = sanitize(editor.innerHTML);
