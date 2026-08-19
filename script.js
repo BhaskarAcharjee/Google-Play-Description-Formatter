@@ -529,7 +529,7 @@ if (formatReleaseNotesBtn) {
       cleaned = `<en-US>\n${cleaned}\n</en-US>`;
     }
 
-    editor.innerText = cleaned;
+    editor.innerHTML = cleaned;
     update();
     showToast("🚀 Formatted as <en-US> Play Release Notes!");
   });
