@@ -401,6 +401,13 @@ function sanitize(inputHtml) {
   cleanHtml = cleanHtml.replace(/•\s*\n+\s*(<b>|<[a-z0-9]+>|[A-Za-z0-9])/gi, "• $1");
   cleanHtml = cleanHtml.replace(/•\s*(?=\n|•|$)/g, "");
 
+  // Preserve uppercase region codes in locale tags (<en-us> -> <en-US>, <es-es> -> <es-ES>, <pt-br> -> <pt-BR>)
+  cleanHtml = cleanHtml.replace(/<\/?([a-z]{2,3})-([a-z]{2,4})>/gi, (match, lang, region) => {
+    const isClosing = match.startsWith("</");
+    const tag = `${lang.toLowerCase()}-${region.toUpperCase()}`;
+    return isClosing ? `</${tag}>` : `<${tag}>`;
+  });
+
   // Final string normalization
   cleanHtml = cleanHtml
     .replace(/<br\s*\/?>/gi, "\n")
@@ -424,11 +431,24 @@ function update() {
   previewApp.innerHTML = sanitizedHtml;
   previewWeb.innerHTML = sanitizedHtml;
 
+  // Process HTML Entity Encoding Toggle (& vs &amp;)
+  const encodeEntitiesCheckbox = document.getElementById("encodeEntitiesCheckbox");
+  const encodeEntities = encodeEntitiesCheckbox ? encodeEntitiesCheckbox.checked : true;
+
+  let finalConsoleOutput = sanitizedHtml;
+  if (encodeEntities) {
+    // Encode raw '&' into '&amp;' (if not already part of an HTML entity)
+    finalConsoleOutput = finalConsoleOutput.replace(/&(?!amp;|lt;|gt;|quot;|#\d+;|#[xX][0-9a-fA-F]+;)/g, "&amp;");
+  } else {
+    // Decode '&amp;' back to raw '&'
+    finalConsoleOutput = finalConsoleOutput.replace(/&amp;/g, "&");
+  }
+
   // Update Console Output Textarea
-  output.value = sanitizedHtml;
+  output.value = finalConsoleOutput;
 
   // Update Counters & Progress Bars
-  updateCounters(sanitizedHtml);
+  updateCounters(finalConsoleOutput);
 }
 
 /* ==========================================================================
@@ -531,7 +551,58 @@ if (formatReleaseNotesBtn) {
 
     editor.innerHTML = cleaned;
     update();
-    showToast("🚀 Formatted as <en-US> Play Release Notes!");
+    showToast("🚀 Formatted as Standard <en-US> Play Release Notes!");
+  });
+}
+
+const formatCompactReleaseNotesBtn = document.getElementById("formatCompactReleaseNotesBtn");
+if (formatCompactReleaseNotesBtn) {
+  formatCompactReleaseNotesBtn.addEventListener("click", async () => {
+    let currentText = editor.innerText || editor.textContent;
+    if (!currentText.trim()) {
+      const defaultText = "<en-US>\n• <b>Performance:</b> Faster load times & stability improvements.\n• <b>Bug Fixes:</b> Solved minor UI crashes.\n</en-US>";
+      editor.innerHTML = sanitize(defaultText);
+      update();
+      showToast("⚡ Formatted as Compact <en-US> Release Notes!");
+      return;
+    }
+
+    if (getGeminiApiKey()) {
+      const originalBtnText = formatCompactReleaseNotesBtn.innerHTML;
+      formatCompactReleaseNotesBtn.disabled = true;
+      formatCompactReleaseNotesBtn.innerHTML = `<span class="spinner"></span> Compacting...`;
+      try {
+        const prompt = `Condense the following release notes / text into ULTRA-SHORT, SUPER CONCISE Google Play Store Release Notes wrapped in <en-US>...</en-US> tags.
+STRICT LIMIT: MAXIMUM 3 bullet points, under 250 characters total length. Format: • <b>Title:</b> Short sentence.
+
+INPUT TEXT:
+${currentText}`;
+        const rawAi = await callGeminiApi(prompt);
+        const cleaned = sanitize(rawAi);
+        editor.innerHTML = cleaned;
+        update();
+        showToast("⚡ Generated Compact <en-US> Release Notes!");
+      } catch (err) {
+        let cleaned = sanitize(editor.innerHTML);
+        if (!/<[a-z]{2,3}(-[a-z]{2,4})?>/i.test(cleaned)) {
+          cleaned = `<en-US>\n${cleaned}\n</en-US>`;
+        }
+        editor.innerHTML = cleaned;
+        update();
+        showToast("⚡ Formatted as <en-US> Release Notes!");
+      } finally {
+        formatCompactReleaseNotesBtn.disabled = false;
+        formatCompactReleaseNotesBtn.innerHTML = originalBtnText;
+      }
+    } else {
+      let cleaned = sanitize(editor.innerHTML);
+      if (!/<[a-z]{2,3}(-[a-z]{2,4})?>/i.test(cleaned)) {
+        cleaned = `<en-US>\n${cleaned}\n</en-US>`;
+      }
+      editor.innerHTML = cleaned;
+      update();
+      showToast("⚡ Formatted as <en-US> Release Notes!");
+    }
   });
 }
 
@@ -880,12 +951,24 @@ async function submitCommitReleaseNotes() {
   btn.disabled = true;
   btn.innerHTML = `<span class="spinner"></span> Generating...`;
 
+  const versionRadio = document.querySelector('input[name="releaseNoteVersion"]:checked');
+  const version = versionRadio ? versionRadio.value : "standard";
+
   try {
-    const prompt = `Convert the following raw git commit log / developer changelog into clean, professional Google Play Store Release Notes wrapped in <en-US>...</en-US> tags.
+    let prompt = "";
+    if (version === "compact") {
+      prompt = `Convert the following raw git commit log / developer changelog into ULTRA-SHORT, COMPACT Google Play Store Release Notes wrapped in <en-US>...</en-US> tags.
+STRICT LIMIT: MAXIMUM 3 bullet points, under 250 characters total length. Format: • <b>Title:</b> Short user-facing sentence. Filter out internal dev noise (like merge commits, CI/CD, gradle updates, refractors).
+
+RAW COMMITS/CHANGELOG:
+${commitsText}`;
+    } else {
+      prompt = `Convert the following raw git commit log / developer changelog into clean, professional Google Play Store Release Notes wrapped in <en-US>...</en-US> tags.
 Limit total release notes to MAXIMUM 500 characters constraint. Use • <b>Title:</b> Description bullet points. Filter out internal dev noise (like merge commits, CI/CD, gradle updates, refractors) and focus on user-facing benefits and fixes.
 
 RAW COMMITS/CHANGELOG:
 ${commitsText}`;
+    }
 
     const rawAiOutput = await callGeminiApi(prompt);
     const cleaned = sanitize(rawAiOutput);
@@ -893,7 +976,7 @@ ${commitsText}`;
     closeCommitModal();
     editor.innerHTML = cleaned;
     update();
-    showToast("📦 Generated Play Release Notes from Commits!");
+    showToast(`📦 Generated ${version === "compact" ? "Compact" : "Standard"} Play Release Notes!`);
   } catch (err) {
     alert("Gemini AI Error: " + err.message);
   } finally {
@@ -1022,3 +1105,6 @@ ${currentText}`;
 
 // Initialize API Key UI Status on load
 updateApiKeyStatusUI();
+
+// Event listener for HTML Entity Encoding toggle
+document.getElementById("encodeEntitiesCheckbox")?.addEventListener("change", update);

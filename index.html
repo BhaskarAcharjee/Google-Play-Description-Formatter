@@ -127,9 +127,13 @@
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
               Convert Markdown
             </button>
-            <button id="formatReleaseNotesBtn" class="btn-secondary-action" title="Format as Google Play Release Notes wrapped in <en-US> (500 char limit)">
+            <button id="formatReleaseNotesBtn" class="btn-secondary-action" title="Format as Standard Google Play Release Notes wrapped in <en-US> (~350-500 chars)">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-              &lt;en-US&gt; Release Notes
+              &lt;en-US&gt; Standard Notes
+            </button>
+            <button id="formatCompactReleaseNotesBtn" class="btn-secondary-action" title="Format as Compact Ultra-Short Google Play Release Notes wrapped in <en-US> (~150-250 chars)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+              ⚡ Compact Notes
             </button>
             <button id="bestPracticesBtn" class="btn-secondary-action" title="Applies Play Store ASO best practices (wrap headers in <b>, link formats)">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -233,6 +237,10 @@
                 <label>
                   <input type="checkbox" id="countTagsCheckbox" checked />
                   Include HTML tags in char count (Play Console Rule)
+                </label>
+                <label>
+                  <input type="checkbox" id="encodeEntitiesCheckbox" checked />
+                  Encode HTML entities (&amp; to &amp;amp;)
                 </label>
               </div>
             </div>
@@ -620,6 +628,25 @@ feat: add dark mode theme support
 fix: resolve crash when restoring purchases
 perf: optimize database query speed
 chore: update gradle dependencies"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Release Notes Output Format &amp; Length:</label>
+            <div class="version-selector-group">
+              <label class="version-radio-card">
+                <input type="radio" name="releaseNoteVersion" value="standard" checked />
+                <div class="radio-info">
+                  <span class="version-title">Standard Version (~350–500 chars)</span>
+                  <span class="version-desc">Full detailed bullets with feature titles &amp; explanations.</span>
+                </div>
+              </label>
+              <label class="version-radio-card">
+                <input type="radio" name="releaseNoteVersion" value="compact" />
+                <div class="radio-info">
+                  <span class="version-title">⚡ Compact Version (~150–250 chars)</span>
+                  <span class="version-desc">Ultra-short 2–3 concise bullet lines for strict space limits.</span>
+                </div>
+              </label>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
